@@ -13,6 +13,7 @@ using System.Collections;
 using System.IO;
 using NReco.Csv;
 using System.Globalization;
+using System.Windows.Forms.DataVisualization.Charting;
 
 namespace WinFormNewApp
 {
@@ -155,11 +156,7 @@ namespace WinFormNewApp
                 chart1.ChartAreas[0].CursorX.IsUserSelectionEnabled = false;
             }
 
-            if (checkBox2.Checked)
-            {
-                chart1.ChartAreas[0].CursorY.IsUserSelectionEnabled = true;
-            }
-            else
+            if ((checkBox10.Checked == false) && (checkBox10.Checked == false))
             {
                 chart1.ChartAreas[0].CursorY.IsUserSelectionEnabled = false;
             }
@@ -167,7 +164,26 @@ namespace WinFormNewApp
 
         private void checkBox2_CheckedChanged(object sender, EventArgs e)
         {
-            cursorX_Y_zoom();
+            if (checkBox2.Checked == true)
+            {
+                checkBox10.Checked = false;
+                chart1.ChartAreas[0].CursorY.AxisType = (AxisType)0;  // 0为主轴
+                chart1.ChartAreas[0].CursorY.IsUserSelectionEnabled = true;
+            }
+        }
+
+        private void checkBox10_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox10.Checked == true)
+            {
+                checkBox2.Checked = false;  // 二选一
+                chart1.ChartAreas[0].CursorY.AxisType = (AxisType)1;  // 1为辅助轴
+                chart1.ChartAreas[0].CursorY.IsUserSelectionEnabled = true;
+            }
+            if ((checkBox10.Checked == false) && (checkBox10.Checked == false))
+            {
+                chart1.ChartAreas[0].CursorY.IsUserSelectionEnabled = false;
+            }
         }
 
         private void chart1_MouseUp(object sender, MouseEventArgs e)
@@ -178,6 +194,7 @@ namespace WinFormNewApp
                 checkBox9.Checked = false;
                 chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(1);//ZoomReset(0)表示撤销所有放大动作
                 chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(1);//ZoomReset(1)表示撤销上一次放大动作
+                chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(1);
             }
         }
 
@@ -207,6 +224,8 @@ namespace WinFormNewApp
             checkBox9.Checked = false;  // 先取消值的显示
             chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(0);//ZoomReset(0)表示撤销所有放大动作
             chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(0);//ZoomReset(1)表示撤销上一次放大动作
+            chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(0);
+
         }
 
         private void checkBox3_CheckedChanged(object sender, EventArgs e)
@@ -793,5 +812,6 @@ namespace WinFormNewApp
             }
 
         }
+
     }
 }
