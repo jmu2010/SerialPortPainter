@@ -186,17 +186,17 @@ namespace WinFormNewApp
             }
         }
 
-        private void chart1_MouseUp(object sender, MouseEventArgs e)
-        {
-            // 控件右击，撤销上一步的放大
-            if (e.Button == MouseButtons.Right)
-            {
-                checkBox9.Checked = false;
-                chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(1);//ZoomReset(0)表示撤销所有放大动作
-                chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(1);//ZoomReset(1)表示撤销上一次放大动作
-                chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(1);
-            }
-        }
+        //private void chart1_MouseUp(object sender, MouseEventArgs e)
+        //{
+        //    // 控件右击，撤销上一步的放大
+        //    if (e.Button == MouseButtons.Right)
+        //    {
+        //        checkBox9.Checked = false;
+        //        chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(1);//ZoomReset(0)表示撤销所有放大动作
+        //        chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(1);//ZoomReset(1)表示撤销上一次放大动作
+        //        chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(1);
+        //    }
+        //}
 
         private void radioButton1_CheckedChanged(object sender, EventArgs e)
         {
@@ -813,5 +813,47 @@ namespace WinFormNewApp
 
         }
 
+        // 计算 X轴刻度线
+        private void CalcBestAxisInterval(bool mode)
+        {
+            int count = 0;
+
+            if (mode == true)
+            {
+                count = (int)(chart1.ChartAreas[0].AxisX.ScaleView.ViewMaximum - chart1.ChartAreas[0].AxisX.ScaleView.ViewMinimum) / 20;
+                chart1.ChartAreas[0].AxisX.Interval = count;
+            }
+            else
+            {
+                chart1.ChartAreas[0].AxisX.Interval = 0;  // 设置为自动
+            }
+
+        }
+
+        private void contextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+        {
+            // 重置1步
+            if (e.ClickedItem == toolStripMenuItem1)
+            {
+                CalcBestAxisInterval(false);
+                checkBox9.Checked = false;
+                chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(1);//ZoomReset(0)表示撤销所有放大动作
+                chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(1);//ZoomReset(1)表示撤销上一次放大动作
+                chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(1);
+            }
+            else if (e.ClickedItem == toolStripMenuItem2)  // 重置所有
+            {
+                CalcBestAxisInterval(false);
+                checkBox9.Checked = false;  // 先取消值的显示
+                chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(0);//ZoomReset(0)表示撤销所有放大动作
+                chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(0);//ZoomReset(1)表示撤销上一次放大动作
+                chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(0);
+
+            }
+            else if (e.ClickedItem == toolStripMenuItem3)  // 更新刻度
+            {
+                CalcBestAxisInterval(true);
+            }
+        }
     }
 }
