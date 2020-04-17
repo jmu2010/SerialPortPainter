@@ -24,7 +24,6 @@ namespace WinFormNewApp
         const int channel_num = 6;       // 采样通道
         float text_box_font_size = 9.0f;  // 字体大小
         private const int queue_cnt = 6000; // 每个采样通道最大数据量
-        private int no_full_frm_timeout = 0;  // 非完整帧超时计数
         private bool paint_browse_mode = true;  // 默认绘图模式
         private int total_frms = 0;  // 总的帧数
 
@@ -444,6 +443,7 @@ namespace WinFormNewApp
 
             //标准帧数据
             byte[] buf_serial = new byte[12];  // 串口缓冲区
+            byte[] buf_dirty_serial = new byte[12];  // 脏数据
 
             if (total_bytes % 12 == 0)
             {
@@ -454,8 +454,20 @@ namespace WinFormNewApp
                     total_frms++;  // 帧计数
                     sp.Read(buf_serial, 0, 12);
 
+                    // 帧头和帧尾校验
+                    if ((buf_serial[0] == 0xAA) && (buf_serial[1] == 0xAA) && (buf_serial[11] == 0xFE))
+                    {
+                        ;  //无需处理
+                    }
+                    else
+                    {
+                        sp.Read(buf_dirty_serial, 0, 11);  // 下一帧也丢弃
+                        return;
+                    }
+
                     for (int i = 0; i < 12; i++)
                     {
+                        // 有效帧处理
                         lock (apple)
                         {
                             switch (i % 12)
@@ -504,7 +516,7 @@ namespace WinFormNewApp
             }
             else
             {
-                no_full_frm_timeout++;
+                //no_full_frm_timeout++;
             }
         }
 
