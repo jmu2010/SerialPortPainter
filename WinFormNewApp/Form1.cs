@@ -633,14 +633,23 @@ namespace WinFormNewApp
         {
             lock (apple)
             {
-                if ((serialDataCntQueue.Count >= 1) && (paint_browse_mode == true))
-                {            
+                if ((serialDataCh0Queue.Count >= 1) && (paint_browse_mode == true))
+                {
+                    chart1.Series[0].Points.DataBindY(serialDataCh0Queue.ToArray());
+                    chart1.Series[1].Points.DataBindY(serialDataCh1Queue.ToArray());
+                    chart1.Series[2].Points.DataBindY(serialDataCh2Queue.ToArray());
+                    chart1.Series[3].Points.DataBindY(serialDataCh3Queue.ToArray());
+                    chart1.Series[4].Points.DataBindY(serialDataCh4Queue.ToArray());
+                    chart1.Series[5].Points.DataBindY(serialDataCh5Queue.ToArray());
+
+                    /*
                     chart1.Series[0].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh0Queue.ToArray());
                     chart1.Series[1].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh1Queue.ToArray());
                     chart1.Series[2].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh2Queue.ToArray());
                     chart1.Series[3].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh3Queue.ToArray());
                     chart1.Series[4].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh4Queue.ToArray());
                     chart1.Series[5].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh5Queue.ToArray());
+                    */
                 }
             }
         }
