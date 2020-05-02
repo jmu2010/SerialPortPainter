@@ -22,10 +22,24 @@ namespace WinFormNewApp
         // 变量区
         const int frm_len = 12;          // 每帧数据长度
         const int channel_num = 6;       // 采样通道
+        const int page_max_num = 100;    // 最大页数
+
         float text_box_font_size = 9.0f;  // 字体大小
         private const int queue_cnt = 6000; // 每个采样通道最大数据量
         private bool paint_browse_mode = true;  // 默认绘图模式
+        private bool page_saveing = false;  // 是否正在转存
         private int total_frms = 0;  // 总的帧数
+        private int code_run_cnt = 0;  // 运行次数
+        private int total_frms_last = 0;  // 上一次帧次数
+        private int page_cnt = 0;  // 当前页数
+
+        // 使用交错数组实现，以下数组保存历史数据
+        int[][] JaggedArrayCh0 = new int[page_max_num][];  // 100页
+        int[][] JaggedArrayCh1 = new int[page_max_num][];  // 100页
+        int[][] JaggedArrayCh2 = new int[page_max_num][];  // 100页
+        int[][] JaggedArrayCh3 = new int[page_max_num][];  // 100页
+        int[][] JaggedArrayCh4 = new int[page_max_num][];  // 100页
+        int[][] JaggedArrayCh5 = new int[page_max_num][];  // 100页
 
         // my code start here
         static object apple = new object(); // 创建1个互斥体
@@ -633,8 +647,10 @@ namespace WinFormNewApp
         {
             lock (apple)
             {
-                if ((serialDataCh0Queue.Count >= 1) && (paint_browse_mode == true))
+                if ((serialDataCh0Queue.Count != total_frms_last) && (paint_browse_mode == true))
                 {
+                    total_frms_last = serialDataCh0Queue.Count;  // 记录上一次的帧数
+
                     chart1.Series[0].Points.DataBindY(serialDataCh0Queue.ToArray());
                     chart1.Series[1].Points.DataBindY(serialDataCh1Queue.ToArray());
                     chart1.Series[2].Points.DataBindY(serialDataCh2Queue.ToArray());
@@ -642,6 +658,17 @@ namespace WinFormNewApp
                     chart1.Series[4].Points.DataBindY(serialDataCh4Queue.ToArray());
                     chart1.Series[5].Points.DataBindY(serialDataCh5Queue.ToArray());
 
+                    if (serialDataCh0Queue.Count >= 6000)
+                    {
+                        CreateArrayStoreQueue(page_cnt);
+                        ClearReceivedQueue();  // 清除接收队列
+                        numericUpDown1.UpButton();  // 增加1次
+                        page_cnt++;
+                    }
+                    else
+                    {
+                        ;
+                    }
                     /*
                     chart1.Series[0].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh0Queue.ToArray());
                     chart1.Series[1].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh1Queue.ToArray());
@@ -652,6 +679,17 @@ namespace WinFormNewApp
                     */
                 }
             }
+        }
+
+        // 创建数组储存队列
+        private void CreateArrayStoreQueue(int page)
+        {
+            JaggedArrayCh0[page] = serialDataCh0Queue.ToArray();
+            JaggedArrayCh1[page] = serialDataCh1Queue.ToArray();
+            JaggedArrayCh2[page] = serialDataCh2Queue.ToArray();
+            JaggedArrayCh3[page] = serialDataCh3Queue.ToArray();
+            JaggedArrayCh4[page] = serialDataCh4Queue.ToArray();
+            JaggedArrayCh5[page] = serialDataCh5Queue.ToArray();
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -673,7 +711,8 @@ namespace WinFormNewApp
 
         private void 打开ToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("待实现，敬请期待。");
+            MessageBox.Show("断点，程序暂停。");
+            //CreateArrayStoreQueue(1);  // 仅用于测试
         }
 
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
@@ -875,6 +914,49 @@ namespace WinFormNewApp
             {
                 CalcBestAxisInterval(true);
             }
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            int tmp_value = 0;
+
+            tmp_value = (int)numericUpDown1.Value;
+
+            // 确保有数据才能绑定
+            if (page_cnt > tmp_value)
+            {
+                historyArrayBind2Chart(tmp_value);
+            }
+
+            //textBox1.AppendText(numericUpDown1.Value.ToString());  // 调试
+        }
+
+        // 将数据绑定到chart中
+        private void historyArrayBind2Chart(int page)
+        {
+            if(paint_browse_mode == false)
+            {
+                chart1.Series[0].Points.DataBindY(JaggedArrayCh0[page]);
+                chart1.Series[1].Points.DataBindY(JaggedArrayCh1[page]);
+                chart1.Series[2].Points.DataBindY(JaggedArrayCh2[page]);
+                chart1.Series[3].Points.DataBindY(JaggedArrayCh3[page]);
+                chart1.Series[4].Points.DataBindY(JaggedArrayCh4[page]);
+                chart1.Series[5].Points.DataBindY(JaggedArrayCh5[page]);
+            }
+
+        }
+
+        private void ClearReceivedQueue()
+        {
+            total_frms = 0;
+            // 清除队列值
+            serialDataCntQueue.Clear();
+            serialDataCh0Queue.Clear();
+            serialDataCh1Queue.Clear();
+            serialDataCh2Queue.Clear();
+            serialDataCh3Queue.Clear();
+            serialDataCh4Queue.Clear();
+            serialDataCh5Queue.Clear();
         }
     }
 }
