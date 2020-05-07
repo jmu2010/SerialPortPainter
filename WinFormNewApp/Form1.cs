@@ -664,6 +664,10 @@ namespace WinFormNewApp
                         ClearReceivedQueue();  // 清除接收队列
                         numericUpDown1.UpButton();  // 增加1次
                         page_cnt++;
+                        if (page_cnt == page_max_num)
+                        {
+                            page_cnt = 0; // 覆盖Page0
+                        }
                     }
                     else
                     {
