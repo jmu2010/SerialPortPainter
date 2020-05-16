@@ -27,11 +27,11 @@ namespace WinFormNewApp
         float text_box_font_size = 9.0f;  // 字体大小
         private const int queue_cnt = 6000; // 每个采样通道最大数据量
         private bool paint_browse_mode = true;  // 默认绘图模式
-        private bool page_saveing = false;  // 是否正在转存
         private int total_frms = 0;  // 总的帧数
-        private int code_run_cnt = 0;  // 运行次数
         private int total_frms_last = 0;  // 上一次帧次数
-        private int page_cnt = 0;  // 当前页数
+        private int page_cnt = 0;  // 页数
+        private int current_page = 0;  // 页数
+
 
         // 使用交错数组实现，以下数组保存历史数据
         int[][] JaggedArrayCh0 = new int[page_max_num][];  // 100页
@@ -66,7 +66,7 @@ namespace WinFormNewApp
         private Thread textBox_thread = null;  // 绘图线程
 
         ClassMySerial mySerial = new ClassMySerial();
-     
+
         public Form1()
         {
             InitializeComponent();
@@ -108,7 +108,7 @@ namespace WinFormNewApp
 
             PortName = ini.IniReadValue("serialport", "PortName");
             BaudRate = ini.IniReadValue("serialport", "BaudRate");
-            
+
             // 判断是否有配置文件
             if (PortName.Length == 0)
             {
@@ -222,19 +222,38 @@ namespace WinFormNewApp
             {
                 for (int i = 0; i < 6; i++)
                 {
-                    chart1.Series[i].IsValueShownAsLabel = true;
+                    chart1.Series[i].IsValueShownAsLabel = true;            
                 }
+                setAxisMarkerStyle(true);
             }
             else
             {
                 checkBox9.Checked = false;
                 MessageBox.Show("X轴个数太多，无法清晰显示!");
-            }               
+            }
         }
 
+        private void setAxisMarkerStyle(bool flag)
+        {
+            if (true == flag)
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    chart1.Series[i].MarkerStyle = MarkerStyle.Square;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    chart1.Series[i].MarkerStyle = MarkerStyle.None;
+                }
+            }
+        }
         private void button3_Click(object sender, EventArgs e)
         {
             checkBox9.Checked = false;  // 先取消值的显示
+            setAxisMarkerStyle(false);
             chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(0);//ZoomReset(0)表示撤销所有放大动作
             chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(0);//ZoomReset(1)表示撤销上一次放大动作
             chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(0);
@@ -382,7 +401,7 @@ namespace WinFormNewApp
                     {
                         MessageBox.Show("串口打开失败！");
                     }
-                    catch(System.UnauthorizedAccessException)
+                    catch (System.UnauthorizedAccessException)
                     {
                         MessageBox.Show("串口访问被拒绝！");
                     }
@@ -558,7 +577,7 @@ namespace WinFormNewApp
         }
 
         // 绘图任务
-        private  void paint_task()
+        private void paint_task()
         {
             while (true)
             {
@@ -661,9 +680,11 @@ namespace WinFormNewApp
                     if (serialDataCh0Queue.Count >= 6000)
                     {
                         CreateArrayStoreQueue(page_cnt);
+                        current_page = page_cnt;
                         ClearReceivedQueue();  // 清除接收队列
-                        numericUpDown1.UpButton();  // 增加1次
                         page_cnt++;
+                        numericUpDown1.Maximum = page_cnt;  // 限制最大值
+                        numericUpDown1.UpButton();  // 增加1次
                         if (page_cnt == page_max_num)
                         {
                             page_cnt = 0; // 覆盖Page0
@@ -700,7 +721,7 @@ namespace WinFormNewApp
         {
             // 窗体关闭时的动作
             if (paint_thread != null)
-            { 
+            {
                 if (paint_thread.IsAlive)
                 {
                     paint_thread.Abort();
@@ -715,8 +736,7 @@ namespace WinFormNewApp
 
         private void 打开ToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("断点，程序暂停。");
-            //CreateArrayStoreQueue(1);  // 仅用于测试
+
         }
 
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
@@ -768,16 +788,34 @@ namespace WinFormNewApp
 
             paint_browse_mode = false;  // 确保在浏览模式下才能保存
 
-            while (serialDataCntQueue.Count >= 1)
+            // 以下为保存当前队列中的数据
+            if (current_page < page_cnt)  // 中间页
             {
-                myExport.AddRow();
-                myExport["Cnt"] = serialDataCntQueue.Dequeue().ToString();
-                myExport["ch0"] = serialDataCh0Queue.Dequeue().ToString();
-                myExport["ch1"] = serialDataCh1Queue.Dequeue().ToString();
-                myExport["ch2"] = serialDataCh2Queue.Dequeue().ToString();
-                myExport["ch3"] = serialDataCh3Queue.Dequeue().ToString();
-                myExport["ch4"] = serialDataCh4Queue.Dequeue().ToString();
-                myExport["ch5"] = serialDataCh5Queue.Dequeue().ToString();
+                for (int i = 0; i < JaggedArrayCh0[current_page].Length; i++)
+                {
+                    myExport.AddRow();
+                    myExport["Cnt"] = i.ToString();
+                    myExport["ch0"] = JaggedArrayCh0[current_page][i].ToString();
+                    myExport["ch1"] = JaggedArrayCh1[current_page][i].ToString();
+                    myExport["ch2"] = JaggedArrayCh2[current_page][i].ToString();
+                    myExport["ch3"] = JaggedArrayCh3[current_page][i].ToString();
+                    myExport["ch4"] = JaggedArrayCh4[current_page][i].ToString();
+                    myExport["ch5"] = JaggedArrayCh5[current_page][i].ToString();
+                }
+            }
+            else
+            {
+                while (serialDataCntQueue.Count >= 1)
+                {
+                    myExport.AddRow();
+                    myExport["Cnt"] = serialDataCntQueue.Dequeue().ToString();
+                    myExport["ch0"] = serialDataCh0Queue.Dequeue().ToString();
+                    myExport["ch1"] = serialDataCh1Queue.Dequeue().ToString();
+                    myExport["ch2"] = serialDataCh2Queue.Dequeue().ToString();
+                    myExport["ch3"] = serialDataCh3Queue.Dequeue().ToString();
+                    myExport["ch4"] = serialDataCh4Queue.Dequeue().ToString();
+                    myExport["ch5"] = serialDataCh5Queue.Dequeue().ToString();
+                }
             }
 
             // 保存文件对话框
@@ -797,7 +835,7 @@ namespace WinFormNewApp
             myExport.ExportToFile(fileName);
             MessageBox.Show("数据已保存");
 
-            paint_browse_mode = true;  // 保存完成后可绘图
+            //paint_browse_mode = true;  // 保存完成后可绘图
 
         }
 
@@ -812,7 +850,7 @@ namespace WinFormNewApp
         {
             // 提示用户数据覆盖情况
 
-            if (MessageBox.Show("加载数据会覆盖当前界面，确认吗?","提示",MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show("加载数据会覆盖当前界面，确认吗?", "提示", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 // Do something after the Yes button was clicked by user.
             }
@@ -833,6 +871,7 @@ namespace WinFormNewApp
                 //将选择的文件的全路径赋值给文本框
                 //textBox1.Text = openfile.FileName;
                 button7.PerformClick();  // 清除界面再加载
+                total_frms_last = 0;  // 确保每次都重新绘图
             }
             else
             {
@@ -843,6 +882,7 @@ namespace WinFormNewApp
             using (var streamRdr = new StreamReader(openfile.FileName))
             {
                 var csv = new CsvReader(streamRdr, ",");
+                //textBox1.AppendText("Read begin.\t");
                 while (csv.Read())
                 {
                     // 按照列进行读取
@@ -851,7 +891,7 @@ namespace WinFormNewApp
                     {
                         continue; // skip header row
                     }
-                    textBox1.AppendText(csv[0] + "\t");
+                    //textBox1.AppendText(csv[0] + "\t");  // 占用太多时间
 
                     serialDataCntQueue.Enqueue(Convert.ToInt32(csv[0]));
                     serialDataCh0Queue.Enqueue(Convert.ToInt32(csv[1]));
@@ -860,21 +900,17 @@ namespace WinFormNewApp
                     serialDataCh3Queue.Enqueue(Convert.ToInt32(csv[4]));
                     serialDataCh4Queue.Enqueue(Convert.ToInt32(csv[5]));
                     serialDataCh5Queue.Enqueue(Convert.ToInt32(csv[6]));
-
-                    // 以下为读取所有数据
-                    /*
-                    for (int i = 0;i < csv.FieldsCount; i++) {
-                        string val = csv[i];
-                        //textBox1.AppendText(val + "\t");
-                    }*/
                 }
+                //textBox1.AppendText("Read end.\t");
+
                 // 开启绘图线程
-                if (paint_thread.IsAlive != true)
-                {
-                    paint_thread.Start(); //启动线程
-                }
+                //if (paint_thread.IsAlive != true)
+                //{
+                //    paint_thread.Start(); //启动线程
+                //}
             }
-
+            SerialDataQueueBind2Chart();  // 绘图一次
+            radioButton2.PerformClick();  // 进入浏览模式
         }
 
         // 计算 X轴刻度线
@@ -901,6 +937,7 @@ namespace WinFormNewApp
             {
                 CalcBestAxisInterval(false);
                 checkBox9.Checked = false;
+                setAxisMarkerStyle(false);
                 chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(1);//ZoomReset(0)表示撤销所有放大动作
                 chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(1);//ZoomReset(1)表示撤销上一次放大动作
                 chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(1);
@@ -909,6 +946,7 @@ namespace WinFormNewApp
             {
                 CalcBestAxisInterval(false);
                 checkBox9.Checked = false;  // 先取消值的显示
+                setAxisMarkerStyle(false);
                 chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(0);//ZoomReset(0)表示撤销所有放大动作
                 chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(0);//ZoomReset(1)表示撤销上一次放大动作
                 chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(0);
@@ -925,11 +963,28 @@ namespace WinFormNewApp
             int tmp_value = 0;
 
             tmp_value = (int)numericUpDown1.Value;
+            numericUpDown1.Maximum = page_cnt;  // 限制最大值
 
+            current_page = tmp_value;
+
+            // 处于绘图模式下，直接返回
+            if (paint_browse_mode == true)
+            {
+                return;
+            }
             // 确保有数据才能绑定
             if (page_cnt > tmp_value)
             {
                 historyArrayBind2Chart(tmp_value);
+            }
+            else
+            {
+                chart1.Series[0].Points.DataBindY(serialDataCh0Queue.ToArray());
+                chart1.Series[1].Points.DataBindY(serialDataCh1Queue.ToArray());
+                chart1.Series[2].Points.DataBindY(serialDataCh2Queue.ToArray());
+                chart1.Series[3].Points.DataBindY(serialDataCh3Queue.ToArray());
+                chart1.Series[4].Points.DataBindY(serialDataCh4Queue.ToArray());
+                chart1.Series[5].Points.DataBindY(serialDataCh5Queue.ToArray());
             }
 
             //textBox1.AppendText(numericUpDown1.Value.ToString());  // 调试
@@ -938,7 +993,7 @@ namespace WinFormNewApp
         // 将数据绑定到chart中
         private void historyArrayBind2Chart(int page)
         {
-            if(paint_browse_mode == false)
+            if (paint_browse_mode == false)
             {
                 chart1.Series[0].Points.DataBindY(JaggedArrayCh0[page]);
                 chart1.Series[1].Points.DataBindY(JaggedArrayCh1[page]);
@@ -961,6 +1016,47 @@ namespace WinFormNewApp
             serialDataCh3Queue.Clear();
             serialDataCh4Queue.Clear();
             serialDataCh5Queue.Clear();
+        }
+
+        private void SerialDataQueueBind2Chart()
+        {
+            chart1.Series[0].Points.DataBindY(serialDataCh0Queue.ToArray());
+            chart1.Series[1].Points.DataBindY(serialDataCh1Queue.ToArray());
+            chart1.Series[2].Points.DataBindY(serialDataCh2Queue.ToArray());
+            chart1.Series[3].Points.DataBindY(serialDataCh3Queue.ToArray());
+            chart1.Series[4].Points.DataBindY(serialDataCh4Queue.ToArray());
+            chart1.Series[5].Points.DataBindY(serialDataCh5Queue.ToArray());
+        }
+
+        private void 暂停ToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("断点，程序暂停。");
+        }
+
+        private void chart1_MouseMove(object sender, MouseEventArgs e)
+        {
+
+        }
+
+        private void chart1_MouseClick(object sender, MouseEventArgs e)
+        {
+            label3.Visible = true;
+            label3.Location = new Point(950, 100);
+
+            double xValue = chart1.ChartAreas[0].AxisX.PixelPositionToValue(e.X);
+
+            int x = (int)xValue;
+
+            if ((x < chart1.Series[4].Points.Count) && (x >= 0))
+            {
+                label3.Text = "x: " + x.ToString() + "\r\n" +
+                chart1.Series[0].LegendText + ": " + chart1.Series[0].Points[x].YValues[0].ToString() + "   " +
+                chart1.Series[1].LegendText + ": " + chart1.Series[1].Points[x].YValues[0].ToString() + "   " +
+                chart1.Series[2].LegendText + ": " + chart1.Series[2].Points[x].YValues[0].ToString() + "\r\n" +
+                chart1.Series[3].LegendText + ": " + chart1.Series[3].Points[x].YValues[0].ToString() + "   " +
+                chart1.Series[4].LegendText + ": " + chart1.Series[4].Points[x].YValues[0].ToString() + "   " +
+                chart1.Series[5].LegendText + ": " + chart1.Series[5].Points[x].YValues[0].ToString() + "\r\n";
+            }
         }
     }
 }
