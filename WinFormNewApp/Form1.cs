@@ -86,7 +86,7 @@ namespace WinFormNewApp
                 serialPort1.PortName = comboBox1.Text;      // 串口号
                 serialPort1.BaudRate = Convert.ToInt32(comboBox2.Text);     // 波特率
 
-                serialPort1.ReceivedBytesThreshold = 12;  // 每12个字节触发一次事件
+                serialPort1.ReceivedBytesThreshold = 24;  // 每12个字节触发一次事件
                 serialPort1.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
                 toolStripStatusLabel2.Text = "串口未打开";
                 toolStripStatusLabel2.BackColor = Color.Gray;
@@ -474,82 +474,68 @@ namespace WinFormNewApp
             int tmp = 0;
             int total_bytes = sp.BytesToRead;
 
+            Console.WriteLine(total_bytes);
             //标准帧数据
-            byte[] buf_serial = new byte[12];  // 串口缓冲区
-            byte[] buf_dirty_serial = new byte[12];  // 脏数据
+            byte[] buf_serial = new byte[10];  // 串口缓冲区
 
-            if (total_bytes % 12 == 0)
+            // 读取1个字节
+            tmp = sp.ReadByte();
+            if (tmp == 0xAA)
             {
-                int loop_cnt = total_bytes / 12;
-                while (loop_cnt != 0)
+                tmp = sp.ReadByte();
+                if (tmp == 0xAA)  // 帧头校验
                 {
-                    loop_cnt--;
-                    total_frms++;  // 帧计数
-                    sp.Read(buf_serial, 0, 12);
-
-                    // 帧头和帧尾校验
-                    if ((buf_serial[0] == 0xAA) && (buf_serial[1] == 0xAA) && (buf_serial[11] == 0xFE))
+                    sp.Read(buf_serial, 0, 10);  // 读取后续10个字节
+                    if (buf_serial[9] == 0xFE)  // 帧尾校验
                     {
-                        ;  //无需处理
-                    }
-                    else
-                    {
-                        sp.Read(buf_dirty_serial, 0, 11);  // 下一帧也丢弃
-                        return;
-                    }
-
-                    for (int i = 0; i < 12; i++)
-                    {
-                        // 有效帧处理
-                        lock (apple)
+                        for (int i = 0; i < 10; i++)
                         {
-                            switch (i % 12)
+                            // 有效帧处理
+                            lock (apple)
                             {
-                                case 0:
-                                    break;
-                                case 1:
-                                    serialDataCntQueue.Enqueue(total_frms);  // cnt                                                                          
-                                    break;
-                                case 2:
-                                    serialDataCh0Queue.Enqueue(buf_serial[i]);
-                                    break;
-                                case 3:
-                                    serialDataCh1Queue.Enqueue(buf_serial[i]);
-                                    break;
-                                case 4:
-                                    serialDataCh2Queue.Enqueue(buf_serial[i]);
-                                    break;
-                                case 5:
-                                    tmp = buf_serial[i];
-                                    break;
-                                case 6:
-                                    serialDataCh3Queue.Enqueue((tmp << 8) + buf_serial[i]);
-                                    break;
-                                case 7:
-                                    tmp = buf_serial[i];
-                                    break;
-                                case 8:
-                                    serialDataCh4Queue.Enqueue((tmp << 8) + buf_serial[i]);
-                                    break;
-                                case 9:
-                                    tmp = buf_serial[i];
-                                    break;
-                                case 10:
-                                    serialDataCh5Queue.Enqueue((tmp << 8) + buf_serial[i]);
-                                    break;
-                                case 11:
-                                    break;
-                                default:
-                                    break;
-
+                                switch (i % 10)
+                                {
+                                    case 0:
+                                        serialDataCh0Queue.Enqueue(buf_serial[i]);
+                                        break;
+                                    case 1:
+                                        serialDataCh1Queue.Enqueue(buf_serial[i]);
+                                        break;
+                                    case 2:
+                                        serialDataCh2Queue.Enqueue(buf_serial[i]);
+                                        break;
+                                    case 3:
+                                        tmp = buf_serial[i];
+                                        break;
+                                    case 4:
+                                        serialDataCh3Queue.Enqueue((tmp << 8) + buf_serial[i]);
+                                        break;
+                                    case 5:
+                                        tmp = buf_serial[i];
+                                        break;
+                                    case 6:
+                                        serialDataCh4Queue.Enqueue((tmp << 8) + buf_serial[i]);
+                                        break;
+                                    case 7:
+                                        tmp = buf_serial[i];
+                                        break;
+                                    case 8:
+                                        serialDataCh5Queue.Enqueue((tmp << 8) + buf_serial[i]);
+                                        break;
+                                    case 9:
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
                         }
-                    }
+
+                    }                  
                 }
             }
             else
             {
-                //no_full_frm_timeout++;
+                ;
             }
         }
 
