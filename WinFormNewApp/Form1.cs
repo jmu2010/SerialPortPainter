@@ -27,10 +27,10 @@ namespace WinFormNewApp
         float text_box_font_size = 9.0f;  // 字体大小
         private const int queue_cnt = 6000; // 每个采样通道最大数据量
         private bool paint_browse_mode = true;  // 默认绘图模式
-        private int total_frms = 0;  // 总的帧数
         private int total_frms_last = 0;  // 上一次帧次数
         private int page_cnt = 0;  // 页数
         private int current_page = 0;  // 页数
+        private int save_index = 0;  // 保存数据索引
 
 
         // 使用交错数组实现，以下数组保存历史数据
@@ -45,22 +45,12 @@ namespace WinFormNewApp
         static object apple = new object(); // 创建1个互斥体
 
         // 以下队列用于绘图
-        private Queue<int> serialDataCntQueue = new Queue<int>();
         private Queue<int> serialDataCh0Queue = new Queue<int>();
         private Queue<int> serialDataCh1Queue = new Queue<int>();
         private Queue<int> serialDataCh2Queue = new Queue<int>();
         private Queue<int> serialDataCh3Queue = new Queue<int>();
         private Queue<int> serialDataCh4Queue = new Queue<int>();
         private Queue<int> serialDataCh5Queue = new Queue<int>();
-
-        // 以下队列用于显示数据
-        //private Queue<int> serialDataCntQ = new Queue<int>();
-        //private Queue<int> serialDataCh0Q = new Queue<int>();
-        //private Queue<int> serialDataCh1Q = new Queue<int>();
-        //private Queue<int> serialDataCh2Q = new Queue<int>();
-        //private Queue<int> serialDataCh3Q = new Queue<int>();
-        //private Queue<int> serialDataCh4Q = new Queue<int>();
-        //private Queue<int> serialDataCh5Q = new Queue<int>();
 
         private Thread paint_thread = null;  // 绘图线程
         private Thread textBox_thread = null;  // 绘图线程
@@ -198,18 +188,6 @@ namespace WinFormNewApp
                 chart1.ChartAreas[0].CursorY.IsUserSelectionEnabled = false;
             }
         }
-
-        //private void chart1_MouseUp(object sender, MouseEventArgs e)
-        //{
-        //    // 控件右击，撤销上一步的放大
-        //    if (e.Button == MouseButtons.Right)
-        //    {
-        //        checkBox9.Checked = false;
-        //        chart1.ChartAreas[0].AxisX.ScaleView.ZoomReset(1);//ZoomReset(0)表示撤销所有放大动作
-        //        chart1.ChartAreas[0].AxisY.ScaleView.ZoomReset(1);//ZoomReset(1)表示撤销上一次放大动作
-        //        chart1.ChartAreas[0].AxisY2.ScaleView.ZoomReset(1);
-        //    }
-        //}
 
         private void radioButton1_CheckedChanged(object sender, EventArgs e)
         {
@@ -453,9 +431,7 @@ namespace WinFormNewApp
             {
                 serialPort1.DiscardInBuffer();
             }
-            total_frms = 0;
             // 清除队列值
-            serialDataCntQueue.Clear();
             serialDataCh0Queue.Clear();
             serialDataCh1Queue.Clear();
             serialDataCh2Queue.Clear();
@@ -579,16 +555,7 @@ namespace WinFormNewApp
         }
         private void textBox_task()
         {
-            /*
-            string index_tmp = null;
-            string tmp0 = null;
-            string tmp1 = null;
-            string tmp2 = null;
-            string tmp3 = null;
-            string tmp4 = null;
-            string tmp5 = null;
-            string tmp = null;
-            */
+
             while (true)
             {
                 //lock(apple)
@@ -597,19 +564,7 @@ namespace WinFormNewApp
                     {
                         for (int i = 0; i < 50; i++)
                         {
-                            //if (serialDataCntQ.Count >= 1)
-                            //{
-                            //    index_tmp = serialDataCntQ.Dequeue().ToString();
-                            //    tmp0 = serialDataCh0Q.Dequeue().ToString();
-                            //    tmp1 = serialDataCh1Q.Dequeue().ToString();
-                            //    tmp2 = serialDataCh2Q.Dequeue().ToString();
-                            //    tmp3 = serialDataCh3Q.Dequeue().ToString();
-                            //    tmp4 = serialDataCh4Q.Dequeue().ToString();   
-                            //    tmp5 = serialDataCh5Q.Dequeue().ToString();  
-                            //    tmp = index_tmp + " " + tmp0 + " " + tmp1 + " " + tmp2 + " " + tmp3 + " " + tmp4 + " " + tmp5 + " " + "\r\n";
-                            //    textBox1.AppendText(tmp);
-                            //    toolStripStatusLabel1.Text = index_tmp;
-                            //}
+
                         }
                     }));
                 }
@@ -680,14 +635,7 @@ namespace WinFormNewApp
                     {
                         ;
                     }
-                    /*
-                    chart1.Series[0].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh0Queue.ToArray());
-                    chart1.Series[1].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh1Queue.ToArray());
-                    chart1.Series[2].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh2Queue.ToArray());
-                    chart1.Series[3].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh3Queue.ToArray());
-                    chart1.Series[4].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh4Queue.ToArray());
-                    chart1.Series[5].Points.DataBindXY(serialDataCntQueue.ToArray(), serialDataCh5Queue.ToArray());
-                    */
+
                 }
             }
         }
@@ -756,7 +704,23 @@ namespace WinFormNewApp
 
         private void button2_Click_1(object sender, EventArgs e)
         {
-            data2csvFile();
+            // 先判断是否处于浏览模式
+            if (true == paint_browse_mode)
+            {
+                if (MessageBox.Show("保存数据需切换到浏览模式，确认吗?", "提示", MessageBoxButtons.YesNo) == DialogResult.Yes)
+                {
+                    radioButton2.PerformClick();  // 进入浏览模式
+                    data2csvFile();        // Do something after the Yes button was clicked by user.
+                }
+                else
+                {
+                    return;  // Do something after the No button was clicked by user.
+                }
+            }
+            else
+            {
+                data2csvFile();        // Do something after the Yes button was clicked by user.
+            }
         }
 
         private void data2csvFile()
@@ -765,44 +729,21 @@ namespace WinFormNewApp
             var myExport = new CsvFileDeal();
             string fileName = null;
 
-            if (serialDataCntQueue.Count == 0)
+            // 以下为保存当前页面中的数据
+            while (save_index < chart1.Series[0].Points.Count)
             {
-                MessageBox.Show("无数据需要保存");
-
-                return;
+                myExport.AddRow();
+                myExport["Cnt"] = save_index.ToString();
+                myExport["ch0"] = chart1.Series[0].Points[save_index].YValues[0].ToString();
+                myExport["ch1"] = chart1.Series[1].Points[save_index].YValues[0].ToString();
+                myExport["ch2"] = chart1.Series[2].Points[save_index].YValues[0].ToString();
+                myExport["ch3"] = chart1.Series[3].Points[save_index].YValues[0].ToString();
+                myExport["ch4"] = chart1.Series[4].Points[save_index].YValues[0].ToString();
+                myExport["ch5"] = chart1.Series[5].Points[save_index].YValues[0].ToString();
+                
+                save_index++;
             }
-
-            paint_browse_mode = false;  // 确保在浏览模式下才能保存
-
-            // 以下为保存当前队列中的数据
-            if (current_page < page_cnt)  // 中间页
-            {
-                for (int i = 0; i < JaggedArrayCh0[current_page].Length; i++)
-                {
-                    myExport.AddRow();
-                    myExport["Cnt"] = i.ToString();
-                    myExport["ch0"] = JaggedArrayCh0[current_page][i].ToString();
-                    myExport["ch1"] = JaggedArrayCh1[current_page][i].ToString();
-                    myExport["ch2"] = JaggedArrayCh2[current_page][i].ToString();
-                    myExport["ch3"] = JaggedArrayCh3[current_page][i].ToString();
-                    myExport["ch4"] = JaggedArrayCh4[current_page][i].ToString();
-                    myExport["ch5"] = JaggedArrayCh5[current_page][i].ToString();
-                }
-            }
-            else
-            {
-                while (serialDataCntQueue.Count >= 1)
-                {
-                    myExport.AddRow();
-                    myExport["Cnt"] = serialDataCntQueue.Dequeue().ToString();
-                    myExport["ch0"] = serialDataCh0Queue.Dequeue().ToString();
-                    myExport["ch1"] = serialDataCh1Queue.Dequeue().ToString();
-                    myExport["ch2"] = serialDataCh2Queue.Dequeue().ToString();
-                    myExport["ch3"] = serialDataCh3Queue.Dequeue().ToString();
-                    myExport["ch4"] = serialDataCh4Queue.Dequeue().ToString();
-                    myExport["ch5"] = serialDataCh5Queue.Dequeue().ToString();
-                }
-            }
+            save_index = 0;
 
             // 保存文件对话框
             SaveFileDialog savefile = new SaveFileDialog();
@@ -817,9 +758,15 @@ namespace WinFormNewApp
                 textBox1.AppendText("保存路径：" + savefile.FileName + "\r\n");
                 fileName = savefile.FileName;
             }
-
-            myExport.ExportToFile(fileName);
-            MessageBox.Show("数据已保存");
+            if (fileName == null)
+            {
+                MessageBox.Show("未输入文件名，不保存！", "Warning!");
+            }
+            else
+            {
+                myExport.ExportToFile(fileName);
+                MessageBox.Show("数据已保存");
+            }
 
             //paint_browse_mode = true;  // 保存完成后可绘图
 
@@ -838,7 +785,8 @@ namespace WinFormNewApp
 
             if (MessageBox.Show("加载数据会覆盖当前界面，确认吗?", "提示", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
-                // Do something after the Yes button was clicked by user.
+                radioButton2.PerformClick();  // 进入浏览模式
+
             }
             else
             {
@@ -879,7 +827,6 @@ namespace WinFormNewApp
                     }
                     //textBox1.AppendText(csv[0] + "\t");  // 占用太多时间
 
-                    serialDataCntQueue.Enqueue(Convert.ToInt32(csv[0]));
                     serialDataCh0Queue.Enqueue(Convert.ToInt32(csv[1]));
                     serialDataCh1Queue.Enqueue(Convert.ToInt32(csv[2]));
                     serialDataCh2Queue.Enqueue(Convert.ToInt32(csv[3]));
@@ -993,9 +940,7 @@ namespace WinFormNewApp
 
         private void ClearReceivedQueue()
         {
-            total_frms = 0;
             // 清除队列值
-            serialDataCntQueue.Clear();
             serialDataCh0Queue.Clear();
             serialDataCh1Queue.Clear();
             serialDataCh2Queue.Clear();
@@ -1024,6 +969,7 @@ namespace WinFormNewApp
 
         }
 
+        // 显示x-y轴对应信息
         private void chart1_MouseClick(object sender, MouseEventArgs e)
         {
             label3.Visible = true;
