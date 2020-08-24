@@ -31,6 +31,8 @@ namespace WinFormNewApp
         private int page_cnt = 0;  // 页数
         private int current_page = 0;  // 页数
         private int save_index = 0;  // 保存数据索引
+        private int last_x_cursor_pos = 0;  // 上一次X轴位置
+        private double [] last_cursor_val = new double[7];  // 上一次X轴位置对应值
 
 
         // 使用交错数组实现，以下数组保存历史数据
@@ -57,6 +59,8 @@ namespace WinFormNewApp
 
         ClassMySerial mySerial = new ClassMySerial();
 
+        public int Nan { get; private set; }
+
         public Form1()
         {
             InitializeComponent();
@@ -76,7 +80,7 @@ namespace WinFormNewApp
                 serialPort1.PortName = comboBox1.Text;      // 串口号
                 serialPort1.BaudRate = Convert.ToInt32(comboBox2.Text);     // 波特率
 
-                serialPort1.ReceivedBytesThreshold = 24;  // 每12个字节触发一次事件
+                serialPort1.ReceivedBytesThreshold = 24;  // 每N个字节触发一次事件
                 serialPort1.DataReceived += new SerialDataReceivedEventHandler(DataReceivedHandler);
                 toolStripStatusLabel2.Text = "串口未打开";
                 toolStripStatusLabel2.BackColor = Color.Gray;
@@ -134,6 +138,8 @@ namespace WinFormNewApp
             checkBox7.Checked = true;     // 默认显示CH4
             checkBox8.Checked = true;     // 默认显示CH5
             radioButton1.Checked = true;
+
+            toolStripComboBox1.SelectedIndex = 0;  // 默认第0通道
 
         }
 
@@ -863,6 +869,7 @@ namespace WinFormNewApp
 
         }
 
+        // 右键菜单选项
         private void contextMenuStrip1_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
             // 重置1步
@@ -979,16 +986,125 @@ namespace WinFormNewApp
 
             int x = (int)xValue;
 
+            int cnt = dataGridView1.Rows.Count;
+
+            if (cnt < 7)
+            {
+                for (int i = 0; i < 7 - cnt; i++)
+                {
+                    dataGridView1.Rows.Add();
+                }
+                // 更新第一列名称
+                dataGridView1[0, 0].Value = "x";
+                for (int i = 0; i < 6; i++)
+                {
+                    dataGridView1[0, i + 1].Value = chart1.Series[i].LegendText;
+                }
+            }
+
+            if (last_x_cursor_pos != x)
+            {
+                // 左列单元格更新
+                for (int i = 0; i < 7; i++)
+                {
+                    dataGridView1[1, i].Value = last_cursor_val[i];
+                }
+            }
+
             if ((x < chart1.Series[4].Points.Count) && (x >= 0))
             {
                 label3.Text = "x: " + x.ToString() + "\r\n" +
-                chart1.Series[0].LegendText + ": " + chart1.Series[0].Points[x].YValues[0].ToString() + "   " +
+                chart1.Series[0].LegendText + ":0x" + Convert.ToString(Convert.ToInt16(chart1.Series[0].Points[x].YValues[0]),16) + "   " +
                 chart1.Series[1].LegendText + ": " + chart1.Series[1].Points[x].YValues[0].ToString() + "   " +
                 chart1.Series[2].LegendText + ": " + chart1.Series[2].Points[x].YValues[0].ToString() + "\r\n" +
                 chart1.Series[3].LegendText + ": " + chart1.Series[3].Points[x].YValues[0].ToString() + "   " +
                 chart1.Series[4].LegendText + ": " + chart1.Series[4].Points[x].YValues[0].ToString() + "   " +
                 chart1.Series[5].LegendText + ": " + chart1.Series[5].Points[x].YValues[0].ToString() + "\r\n";
+
+                dataGridView1[2, 0].Value = x;
+                dataGridView1[3, 0].Value = x - last_x_cursor_pos;
+
+                // 对右列单元格进行操作
+                for (int i = 1; i < 7; i++)
+                {
+                    // 计算差值
+                    dataGridView1[3, i].Value = chart1.Series[i-1].Points[x].YValues[0] - last_cursor_val[i];  
+
+                    // X1赋值
+                    dataGridView1[2, i].Value = chart1.Series[i-1].Points[x].YValues[0];
+                    last_cursor_val[i] = chart1.Series[i-1].Points[x].YValues[0];
+                }
+                last_x_cursor_pos = x;
+                last_cursor_val[0] = x;
             }
         }
+
+        private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            //dataGridView1.
+        }
+
+        private void toolStripComboBox1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        // 数据统计
+        private void toolStripComboBox1_DropDownClosed(object sender, EventArgs e)
+        {
+            int select_index = toolStripComboBox1.SelectedIndex;
+            string disp_str = "";
+
+            int min_x = (int)chart1.ChartAreas[0].AxisX.ScaleView.ViewMinimum;
+
+            int max, min, sum, num = (int)chart1.ChartAreas[0].AxisX.ScaleView.Size;
+
+            if (num <= 0)
+            {
+                MessageBox.Show("无数据需要统计！", "Warning!");
+                return;
+            }
+            float ave;
+            num += 1;
+            int[] a = new int[num];
+
+            // 数组赋值
+            for (int i = 0; i < num; i++)
+            {
+                a[i] = (int)chart1.Series[select_index].Points[min_x + i].YValues[0];
+            }
+
+            // 求最大值
+            max = a[0];
+            for (int i = 0; i < num; i++)
+            {
+                if (a[i] > max)
+                {
+                    max = a[i];
+                }
+            }
+            // 求最小值
+            min = a[0];
+            for (int i = 0; i < num; i++)
+            {
+                if (a[i] < min)
+                {
+                    min = a[i];
+                }
+            }
+            // 求平均值
+            sum = 0;
+            for (int i = 0; i < num; i++)
+            {
+                sum += a[i];
+            }
+            ave = (float)sum / num;
+
+            // 显示
+            disp_str = chart1.Series[select_index].LegendText + "\r\n" + "Max: " + max.ToString() + "\r\n" + "Min: " + min.ToString() + "\r\n" + "Ave: " + ave.ToString();
+
+            MessageBox.Show(disp_str, "统计信息");
+        }
+
     }
 }
