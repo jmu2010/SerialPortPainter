@@ -33,7 +33,7 @@ namespace WinFormNewApp
         private int save_index = 0;  // 保存数据索引
         private int last_x_cursor_pos = 0;  // 上一次X轴位置
         private double [] last_cursor_val = new double[7];  // 上一次X轴位置对应值
-
+        private int [] channel_disp_format   = new int[6];  // 通道内容显示格式, 2,10,16进制
 
         // 使用交错数组实现，以下数组保存历史数据
         int[][] JaggedArrayCh0 = new int[page_max_num][];  // 100页
@@ -119,6 +119,10 @@ namespace WinFormNewApp
                 chart1.Series[3].LegendText = ini.IniReadValue("channelName", "ch3");
                 chart1.Series[4].LegendText = ini.IniReadValue("channelName", "ch4");
                 chart1.Series[5].LegendText = ini.IniReadValue("channelName", "ch5");
+
+                channel_disp_format[0] = Convert.ToInt16(ini.IniReadValue("channelDispFormat", "ch0"));
+                channel_disp_format[1] = Convert.ToInt16(ini.IniReadValue("channelDispFormat", "ch1"));
+                channel_disp_format[2] = Convert.ToInt16(ini.IniReadValue("channelDispFormat", "ch2"));
 
                 checkBox3.Text = chart1.Series[0].LegendText;
                 checkBox4.Text = chart1.Series[1].LegendText;
@@ -988,6 +992,9 @@ namespace WinFormNewApp
 
             int cnt = dataGridView1.Rows.Count;
 
+            string ch345_text = null;  // 通道3,4,5的内容
+            string [] channel_format_prefix = new string[3];
+
             if (cnt < 7)
             {
                 for (int i = 0; i < 7 - cnt; i++)
@@ -1013,13 +1020,31 @@ namespace WinFormNewApp
 
             if ((x < chart1.Series[4].Points.Count) && (x >= 0))
             {
-                label3.Text = "x: " + x.ToString() + "\r\n" +
-                chart1.Series[0].LegendText + ":0x" + Convert.ToString(Convert.ToInt16(chart1.Series[0].Points[x].YValues[0]),16) + "   " +
-                chart1.Series[1].LegendText + ": " + chart1.Series[1].Points[x].YValues[0].ToString() + "   " +
-                chart1.Series[2].LegendText + ": " + chart1.Series[2].Points[x].YValues[0].ToString() + "\r\n" +
-                chart1.Series[3].LegendText + ": " + chart1.Series[3].Points[x].YValues[0].ToString() + "   " +
+                ch345_text = chart1.Series[3].LegendText + ": " + chart1.Series[3].Points[x].YValues[0].ToString() + "   " +
                 chart1.Series[4].LegendText + ": " + chart1.Series[4].Points[x].YValues[0].ToString() + "   " +
                 chart1.Series[5].LegendText + ": " + chart1.Series[5].Points[x].YValues[0].ToString() + "\r\n";
+
+                // 添加前缀
+                for(int i = 0; i < 3; i++)
+                {
+                    if (channel_disp_format[i] == 16)
+                    {
+                        channel_format_prefix[i] = ":0x";
+                    }
+                    else if (channel_disp_format[i] == 2)
+                    {
+                        channel_format_prefix[i] = ":0b";
+                    }
+                    else if (channel_disp_format[i] == 10)
+                    {
+                        channel_format_prefix[i] = ": ";
+                    }
+                }
+
+                label3.Text = "x: " + x.ToString() + "\r\n" +
+                chart1.Series[0].LegendText + channel_format_prefix[0] + Convert.ToString(Convert.ToInt16(chart1.Series[0].Points[x].YValues[0]), channel_disp_format[0]) + "   " +
+                chart1.Series[1].LegendText + channel_format_prefix[1] + Convert.ToString(Convert.ToInt16(chart1.Series[1].Points[x].YValues[0]), channel_disp_format[1]) + "   " +
+                chart1.Series[2].LegendText + channel_format_prefix[2] + Convert.ToString(Convert.ToInt16(chart1.Series[2].Points[x].YValues[0]), channel_disp_format[2]) + "\r\n" + ch345_text;
 
                 dataGridView1[2, 0].Value = x;
                 dataGridView1[3, 0].Value = x - last_x_cursor_pos;
